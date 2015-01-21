@@ -1,9 +1,12 @@
 setwd("/Users/dphnrome/Documents/Git/Predict_Crime/")
+setwd("C:/Users/dhadley/Documents/GitHub/Predict_Crime")
 
 library(lubridate)
 library(tidyr)
 library(dplyr)
 library(broom) # augments d with model variables
+library(ggplot2)
+library(ggmap)
 
 #### Boston data ####
 # Import data from Socrata
@@ -25,14 +28,31 @@ d$Loc <- gsub("\\)", "", d$Loc)
 d <- d %>%
   tbl_df()  %>% # Convert to tbl class - easier to examine than dfs
   mutate(dateTime = mdy_hms(FROMDATE, tz='EST')) %>% 
-  separate(Loc, c("x", "y"), ",")
+  separate(Loc, c("y", "x"), ",") %>%
+  mutate(x = as.numeric(x), y = as.numeric(y))
 
-# 20 means
+# K means
 clust <- d %>%
-  ungroup %>% dplyr::select(x, y) %>% kmeans(20)  
+  ungroup %>% dplyr::select(x, y) %>% kmeans(30)  
 
 # Add cluster variable back to d
 d <- augment(clust, d)
+
+
+
+# Dot map centered on Boston
+map.center <- geocode("Dudley Square, Boston, MA")
+SHmap <- qmap(c(lon=map.center$lon, lat=map.center$lat), source="google", zoom = 12, color='bw')
+SHmap + geom_point(data=d, aes(x=x, y=y, color=d$.cluster))
+
+
+# Dot map centered on Boston
+map.center <- geocode("Dorchester, Boston, MA")
+SHmap <- qmap(c(lon=map.center$lon, lat=map.center$lat), source="google", zoom = 14, color='bw')
+SHmap + geom_point(data=d, aes(x=x, y=y, color=d$.cluster, size=16))
+
+
+
 
 
 # Useful function from 
@@ -43,12 +63,3 @@ plot_kmeans <- function(dat, k) {
     geom_point(aes(x1, x2), data = tidy(clust), size = 10, shape = "x") +
     labs(color = "K-means assignments")
 }
-
-
-library(ggmap)
-# Dot map centered on Boston
-map.center <- geocode("Boston, MA")
-SHmap <- qmap(c(lon=map.center$lon, lat=map.center$lat), source="google", zoom = 16)
-SHmap + geom_point(
-  aes(x=d$x, y=d$y),size = 10, alpha = .7, bins = 26, color="red", 
-  data = d) 
