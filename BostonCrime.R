@@ -3,6 +3,7 @@ setwd("/Users/dphnrome/Documents/Git/Predict_Crime/")
 library(lubridate)
 library(tidyr)
 library(dplyr)
+library(broom) # augments d with model variables
 
 #### Boston data ####
 # Import data from Socrata
@@ -26,21 +27,22 @@ d <- d %>%
   mutate(dateTime = mdy_hms(FROMDATE, tz='EST')) %>% 
   separate(Loc, c("x", "y"), ",")
 
-toCluster <- d %>%
-  select(x, y)
+# 20 means
+clust <- d %>%
+  ungroup %>% dplyr::select(x, y) %>% kmeans(20)  
+
+# Add cluster variable back to d
+d <- augment(clust, d)
 
 
-library(broom)
-
+# Useful function from 
+# https://github.com/dgrtwo/dgrtwo.github.com/blob/master/_R/2015-01-16-kmeans-free-lunch.Rmd
 plot_kmeans <- function(dat, k) {
   clust <- dat %>% ungroup %>% dplyr::select(x, y) %>% kmeans(k)
   ggplot(augment(clust, dat), aes(x, y)) + geom_point(aes(color = .cluster)) +
     geom_point(aes(x1, x2), data = tidy(clust), size = 10, shape = "x") +
     labs(color = "K-means assignments")
 }
-
-plot_kmeans(points1, 2)
-
 
 
 library(ggmap)
