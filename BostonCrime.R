@@ -32,13 +32,30 @@ d <- d %>%
   mutate(x = as.numeric(x), y = as.numeric(y))
 
 # K means
+# This is how we group crimes on a map.
+# It may be more convenient to use reporting areas, but often those bisect a cluster
 clust <- d %>%
-  ungroup %>% dplyr::select(x, y) %>% kmeans(30)  
-
-# Add cluster variable back to d
-d <- augment(clust, d)
+  ungroup %>% dplyr::select(x, y) %>% kmeans(30)
 
 
+# Add cluster variable back to the data frame with the last n clusters
+# We use the last 'n' clusters because we will use those to train the model
+# And ultimately we will predict future clusters based on the last n clusters
+# n is specified in the for loop
+# I went with 50 because I suspect that will be enough for prediction
+c <- augment(clust, d) %>% select(.cluster)
+
+for(i in 1:50){
+  c[[paste('lag', i, sep="_")]] <- lag(c[[i]])
+}
+
+c$X.1 <- d$X.1
+
+d <- merge(d, c, by='X.1') 
+
+
+#### Use maps to inspect the clusters ####
+# There's no science to this - I went with 30 because they seemed appropriate on the map
 
 # Dot map centered on Boston
 map.center <- geocode("Dudley Square, Boston, MA")
