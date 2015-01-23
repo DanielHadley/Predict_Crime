@@ -7,6 +7,7 @@ library(dplyr)
 library(broom) # augments d with model variables
 library(ggplot2)
 library(ggmap)
+library(randomForest)
 
 #### Boston data ####
 # Import data from Socrata
@@ -51,7 +52,17 @@ for(i in 1:50){
 
 c$X.1 <- d$X.1
 
-d <- merge(d, c, by='X.1') 
+d <- merge(d, c, by='X.1')
+
+d <- mutate(d, cluster = .cluster)
+
+
+# To get the variables to build the model
+# noquote(paste("lag_", 1:50," +", sep=''))
+
+
+fit <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10, 
+                    data=d, importance=TRUE, ntree=500, na.action = na.omit)
 
 
 #### Use maps to inspect the clusters ####
