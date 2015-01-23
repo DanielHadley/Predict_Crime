@@ -54,7 +54,24 @@ c$X.1 <- d$X.1
 
 d <- merge(d, c, by='X.1')
 
-d <- mutate(d, cluster = .cluster)
+# Use this to find the weekly and monthly mode 
+# Which will hopefully be predictive
+modeStat = function(vals, ...) {
+  return(as.numeric(names(which.max(table(vals)))))
+}
+
+# Note sure how to index by names, so replace x:y with proper numbers for
+# lag_1 : lag_7 using names(d)
+d <- d  %>% 
+  mutate(cluster = .cluster)  %>%  #the ."var name" throws off some functions
+  mutate(weeklyMode = apply(d[, 26:32], 1, modeStat),
+         weeklyModeLag = apply(d[33:39], 1, modeStat),
+         monthlyMode = apply(d[, 26:55], 1, modeStat)) %>%
+  mutate(weeklyMode = as.factor(as.numeric(weeklyMode)),
+         weeklyModeLag = as.factor(as.numeric(weeklyModeLag)),
+         monthlyMode = as.factor(as.numeric(monthlyMode)))
+         
+
 
 
 # To get the variables to build the model
@@ -62,11 +79,12 @@ d <- mutate(d, cluster = .cluster)
 
 d <- d[7000:7431,]
 
-fit <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10, 
+fit <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
+                      weeklyMode + weeklyModeLag + monthlyMode + X.1 + DAY_WEEK,
                     data=d, importance=TRUE, ntree=500, na.action = na.omit)
 
 
-
+varImpPlot(fit)
 
 
 
