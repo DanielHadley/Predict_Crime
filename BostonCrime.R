@@ -38,7 +38,7 @@ d <- d %>%
 # This is how we group crimes on a map.
 # It may be more convenient to use reporting areas, but often those bisect a cluster
 clust <- d %>%
-  ungroup %>% dplyr::select(x, y) %>% kmeans(15)
+  ungroup %>% dplyr::select(x, y) %>% kmeans(20)
 
 
 # Add cluster variable back to the data frame with the last n clusters
