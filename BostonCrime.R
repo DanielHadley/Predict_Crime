@@ -28,9 +28,11 @@ d$Loc <- gsub("\\)", "", d$Loc)
 
 d <- d %>%
   tbl_df()  %>% # Convert to tbl class - easier to examine than dfs
-  mutate(dateTime = mdy_hms(FROMDATE, tz='EST')) %>% 
+  mutate(dateTime = mdy_hms(FROMDATE, tz='EST')) %>%
+  arrange(dateTime) %>%
   separate(Loc, c("y", "x"), ",") %>%
-  mutate(x = as.numeric(x), y = as.numeric(y))
+  mutate(x = as.numeric(x), y = as.numeric(y),
+         order = seq(1, nrow(d)))
 
 # K means
 # This is how we group crimes on a map.
@@ -50,9 +52,9 @@ for(i in 1:30){
   c[[paste('lag', i, sep="_")]] <- lag(c[[i]])
 }
 
-c$X.1 <- d$X.1
+c$order <- d$order
 
-d <- merge(d, c, by='X.1')
+d <- merge(d, c, by='order')
 
 # Use this to find the weekly and monthly mode 
 # Which will hopefully be predictive
@@ -64,28 +66,41 @@ modeStat = function(vals, ...) {
 # lag_1 : lag_7 using names(d)
 d <- d  %>% 
   mutate(cluster = .cluster)  %>%  #the ."var name" throws off some functions
-  mutate(weeklyMode = apply(d[, 26:32], 1, modeStat),
-         weeklyModeLag = apply(d[33:39], 1, modeStat),
-         monthlyMode = apply(d[, 26:55], 1, modeStat)) %>%
+  mutate(weeklyMode = apply(d[, 27:33], 1, modeStat),
+         weeklyModeLag = apply(d[34:40], 1, modeStat),
+         monthlyMode = apply(d[, 27:56], 1, modeStat)) %>%
   mutate(weeklyMode = as.factor(as.numeric(weeklyMode)),
          weeklyModeLag = as.factor(as.numeric(weeklyModeLag)),
          monthlyMode = as.factor(as.numeric(monthlyMode)))
          
 
 
-
 # To get the variables to build the model
 # noquote(paste("lag_", 1:50," +", sep=''))
 
-d <- d[7000:7431,]
+training <- filter(d, Year=="2014")
+testing <- d  %>% filter(Year=="2015") 
 
-fit <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
-                      weeklyMode + weeklyModeLag + monthlyMode + X.1 + DAY_WEEK,
-                    data=d, importance=TRUE, ntree=500, na.action = na.omit)
+model <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
+                      weeklyMode + weeklyModeLag + monthlyMode + order + DAY_WEEK,
+                    data=training, importance=TRUE, ntree=500, na.action = na.omit)
 
 
-varImpPlot(fit)
+varImpPlot(model)
 
+testing$clusterPredicted <- predict(model, testing)
+
+results <- testing %>% 
+  select(clusterPredicted, cluster) %>%
+  mutate(correct = ifelse(clusterPredicted == cluster, "Correct", "Incorret"))
+
+table(results$correct)
+
+comparison <- testing %>%
+  select(cluster, weeklyMode) %>%
+  mutate(correct = ifelse(weeklyMode == cluster, "Correct", "Incorret"))
+  
+table(comparison$correct)
 
 
 
