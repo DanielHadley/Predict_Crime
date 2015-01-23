@@ -36,17 +36,17 @@ d <- d %>%
 # This is how we group crimes on a map.
 # It may be more convenient to use reporting areas, but often those bisect a cluster
 clust <- d %>%
-  ungroup %>% dplyr::select(x, y) %>% kmeans(30)
+  ungroup %>% dplyr::select(x, y) %>% kmeans(15)
 
 
 # Add cluster variable back to the data frame with the last n clusters
 # We use the last 'n' clusters because we will use those to train the model
 # And ultimately we will predict future clusters based on the last n clusters
 # n is specified in the for loop
-# I went with 50 because I suspect that will be enough for prediction
+# I went with 30 because I suspect that will be enough for prediction
 c <- augment(clust, d) %>% select(.cluster)
 
-for(i in 1:50){
+for(i in 1:30){
   c[[paste('lag', i, sep="_")]] <- lag(c[[i]])
 }
 
@@ -60,9 +60,18 @@ d <- mutate(d, cluster = .cluster)
 # To get the variables to build the model
 # noquote(paste("lag_", 1:50," +", sep=''))
 
+d <- d[7000:7431,]
 
 fit <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10, 
                     data=d, importance=TRUE, ntree=500, na.action = na.omit)
+
+
+
+
+
+
+
+
 
 
 #### Use maps to inspect the clusters ####
