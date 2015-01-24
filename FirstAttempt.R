@@ -41,80 +41,48 @@ clust <- d %>%
   ungroup %>% dplyr::select(x, y) %>% kmeans(20)
 
 
-# Add cluster variable back to the data frame 
+# Add cluster variable back to the data frame with the last n clusters
+# We use the last 'n' clusters because we will use those to train the model
+# And ultimately we will predict future clusters based on the last n clusters
+# n is specified in the for loop
+# I went with 30 because I suspect that will be enough for prediction
 c <- augment(clust, d) %>% select(.cluster)
+
+for(i in 1:30){
+  c[[paste('lag', i, sep="_")]] <- lag(c[[i]])
+}
+
 c$order <- d$order
 
 d <- merge(d, c, by='order')
 
-d <- d  %>% tbl_df() %>% mutate(cluster = .cluster) #the ."var name" throws off some functions
-
-remove(c)
-
-
-#### Narrow it down to one cluster and start looking for patterns there #####
-copy <- d
-d <- filter(d, cluster == "5")
-
-# Date, which I will use to group the observations
-# And then combine them with all days in the sequence
-# The goal is to be able to predict whether a BnE will occur on a given day
-d$date <- as.Date(d$dateTime)
-d$hour <- hour(d$dateTime)
-
-days <- d %>%
-  group_by(date) %>%
-  summarise(Events = n())
-
-allDays <- seq.Date(from=d$date[1], to = d$date[nrow(d)], b='days')
-allDays <- allDays  %>%  as.data.frame() 
-colnames(allDays)[1] = "date"
-
-# After this we will have a df with every date and how many BnEs
-d = merge(days, allDays, by='date', all=TRUE)
-d[is.na(d)] <- 0
-
-remove(allDays, days)
-
-d$id <- seq(1, nrow(d))
-
-# Now get lag, which will probably be more predictive than time between last event(s)
-c <- as.data.frame(d$Events)
-
-for(i in 1:15){
-  c[[paste('lag', i, sep="_")]] <- lag(c[[i]])
+# Use this to find the weekly and monthly mode 
+# Which will hopefully be predictive
+modeStat = function(vals, ...) {
+  return(as.numeric(names(which.max(table(vals)))))
 }
 
-colnames(c)[1] = "Events"
-c <- c  %>% select(-Events) %>%
-  mutate(rowMeans(c))
-
-colnames(c)[16] <- "AvgTwoWeeks"
-
-c$id <- d$id
-
-d = merge(d, c, by="id")
-
-remove(c)
-
-## Add some more time variables to improve prediction
-d <- d %>%
-  mutate(monthDay = day(date),
-         weekDay = wday(date),
-         month = month(date),
-         year = year(date))
+# Note sure how to index by names, so replace x:y with proper numbers for
+# lag_1 : lag_7 using names(d)
+d <- d  %>% 
+  mutate(cluster = .cluster)  %>%  #the ."var name" throws off some functions
+  mutate(weeklyMode = apply(d[, 27:33], 1, modeStat),
+         weeklyModeLag = apply(d[34:40], 1, modeStat),
+         monthlyMode = apply(d[, 27:56], 1, modeStat)) %>%
+  mutate(weeklyMode = as.factor(as.numeric(weeklyMode)),
+         weeklyModeLag = as.factor(as.numeric(weeklyModeLag)),
+         monthlyMode = as.factor(as.numeric(monthlyMode)))
+         
 
 
 # To get the variables to build the model
 # noquote(paste("lag_", 1:50," +", sep=''))
-names(d)
 
-training <- filter(d, year=="2014")
-testing <- d  %>% filter(year=="2015") 
+training <- filter(d, Year=="2014")
+testing <- d  %>% filter(Year=="2015") 
 
-model <- randomForest(Events ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + 
-                        lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
-                        AvgTwoWeeks + id + monthDay + weekDay +  month,
+model <- randomForest(cluster ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
+                      weeklyMode + weeklyModeLag + monthlyMode + order + DAY_WEEK,
                     data=training, importance=TRUE, ntree=500, na.action = na.omit)
 
 
