@@ -34,6 +34,8 @@ clust <- d %>%
 # Add cluster variable back to d
 d <- augment(clust, d)
 
+vals <- lag(d$.cluster)
+
 
 # Useful function from 
 # https://github.com/dgrtwo/dgrtwo.github.com/blob/master/_R/2015-01-16-kmeans-free-lunch.Rmd
