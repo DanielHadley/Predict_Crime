@@ -38,7 +38,7 @@ d <- d %>%
 # This is how we group crimes on a map.
 # It may be more convenient to use reporting areas, but often those bisect a cluster
 clust <- d %>%
-  ungroup %>% dplyr::select(x, y) %>% kmeans(20)
+  ungroup %>% dplyr::select(x, y) %>% kmeans(15)
 
 
 # Add cluster variable back to the data frame 
@@ -54,7 +54,7 @@ remove(c)
 
 #### Narrow it down to one cluster and start looking for patterns there #####
 copy <- d
-d <- filter(d, cluster == "5")
+d <- filter(d, cluster == "6")
 
 # Date, which I will use to group the observations
 # And then combine them with all days in the sequence
@@ -113,7 +113,7 @@ names(d)
 # testing <- d  %>% filter(year=="2015") 
 
 training <- d[1:700,]
-testing <- d[701:1127,]
+testing <- d[701:nrow(d),]
 
 model <- randomForest(as.factor(Events) ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + 
                         lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
@@ -127,14 +127,20 @@ testing$EventsPredicted <- predict(model, testing)
 
 results <- testing %>% 
   select(EventsPredicted, Events) %>%
+  # uncomment below if you do 'as.factor(Events)' in the model
   mutate(EventsPredicted = as.numeric(levels(EventsPredicted))[EventsPredicted]) %>%
+  # uncomment below if you take out the 'as.factor'
+  # mutate(EventsPredicted = ifelse(EventsPredicted < .5, 0, 1)) %>%
   mutate(falsePositive = ifelse(EventsPredicted > 0 & Events <= 0, "Yes", "No"),
          falseNegative = ifelse(EventsPredicted <=0 & Events > 0, "Yes", "No"),
          correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
 
 prop.table(table(results$correct))
-prop.table(table(results$falsePositive))
-prop.table(table(results$falseNegative))
+prop.table(table(results$Events))
+pos <- filter(results, EventsPredicted > 0)
+prop.table(table(pos$falsePositive))
+neg <- filter(results, EventsPredicted == 0)
+prop.table(table(neg$falseNegative))
 
 comparison <- testing %>% 
   select(Events, AvgTwoWeeks) %>%
@@ -144,11 +150,8 @@ comparison <- testing %>%
          correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
   
 prop.table(table(comparison$correct))
-prop.table(table(results$falsePositive))
-prop.table(table(results$falseNegative))
-
-
-
+prop.table(table(comparison$falsePositive))
+prop.table(table(comparison$falseNegative))
 
 
 
