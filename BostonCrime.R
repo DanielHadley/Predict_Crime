@@ -109,8 +109,11 @@ d <- d %>%
 # noquote(paste("lag_", 1:50," +", sep=''))
 names(d)
 
-training <- filter(d, year=="2014")
-testing <- d  %>% filter(year=="2015") 
+# training <- filter(d, year=="2014")
+# testing <- d  %>% filter(year=="2015") 
+
+training <- d[1:700,]
+testing <- d[701:1127,]
 
 model <- randomForest(Events ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + 
                         lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
@@ -120,17 +123,23 @@ model <- randomForest(Events ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 +
 
 varImpPlot(model)
 
-testing$clusterPredicted <- predict(model, testing)
+testing$EventsPredicted <- predict(model, testing)
 
 results <- testing %>% 
-  select(clusterPredicted, cluster) %>%
-  mutate(correct = ifelse(clusterPredicted == cluster, "Correct", "Incorret"))
+  select(EventsPredicted, Events) %>%
+  mutate(EventsPredicted = round(EventsPredicted)) %>%
+  mutate(difference = Events - EventsPredicted)
+  mutate(correct = ifelse(EventsPredicted == Events, "Correct", "Incorret"),
+         falsePositive = ifelse(as.numeric(EventsPredicted) > Events, "Yes", "No"),
+         falseNegatives = ifelse(as.numeric(EventsPredicted) < Events, "Yes", "No"))
 
 table(results$correct)
+table(results$falsePositive)
+table(results$falseNegative)
 
 comparison <- testing %>%
-  select(cluster, weeklyMode) %>%
-  mutate(correct = ifelse(weeklyMode == cluster, "Correct", "Incorret"))
+  select(Events, AvgTwoWeeks) %>%
+  mutate(correct = ifelse(AvgTwoWeeks == Events, "Correct", "Incorret"))
   
 table(comparison$correct)
 
