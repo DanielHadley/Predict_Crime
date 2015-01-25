@@ -115,7 +115,7 @@ names(d)
 training <- d[1:700,]
 testing <- d[701:1127,]
 
-model <- randomForest(Events ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + 
+model <- randomForest(as.factor(Events) ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + 
                         lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
                         AvgTwoWeeks + id + monthDay + weekDay +  month,
                     data=training, importance=TRUE, ntree=500, na.action = na.omit)
@@ -127,14 +127,14 @@ testing$EventsPredicted <- predict(model, testing)
 
 results <- testing %>% 
   select(EventsPredicted, Events) %>%
-  mutate(EventsPredicted = round(EventsPredicted)) %>%
+  mutate(EventsPredicted = as.numeric(levels(EventsPredicted))[EventsPredicted]) %>%
   mutate(falsePositive = ifelse(EventsPredicted > 0 & Events <= 0, "Yes", "No"),
          falseNegative = ifelse(EventsPredicted <=0 & Events > 0, "Yes", "No"),
          correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
 
-table(results$correct)
-table(results$falsePositive)
-table(results$falseNegative)
+prop.table(table(results$correct))
+prop.table(table(results$falsePositive))
+prop.table(table(results$falseNegative))
 
 comparison <- testing %>% 
   select(Events, AvgTwoWeeks) %>%
@@ -143,9 +143,9 @@ comparison <- testing %>%
          falseNegative = ifelse(EventsPredicted <=0 & Events > 0, "Yes", "No"),
          correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
   
-table(comparison$correct)
-table(results$falsePositive)
-table(results$falseNegative)
+prop.table(table(comparison$correct))
+prop.table(table(results$falsePositive))
+prop.table(table(results$falseNegative))
 
 
 
