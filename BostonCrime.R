@@ -128,20 +128,24 @@ testing$EventsPredicted <- predict(model, testing)
 results <- testing %>% 
   select(EventsPredicted, Events) %>%
   mutate(EventsPredicted = round(EventsPredicted)) %>%
-  mutate(difference = Events - EventsPredicted)
-  mutate(correct = ifelse(EventsPredicted == Events, "Correct", "Incorret"),
-         falsePositive = ifelse(as.numeric(EventsPredicted) > Events, "Yes", "No"),
-         falseNegatives = ifelse(as.numeric(EventsPredicted) < Events, "Yes", "No"))
+  mutate(falsePositive = ifelse(EventsPredicted > 0 & Events <= 0, "Yes", "No"),
+         falseNegative = ifelse(EventsPredicted <=0 & Events > 0, "Yes", "No"),
+         correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
 
 table(results$correct)
 table(results$falsePositive)
 table(results$falseNegative)
 
-comparison <- testing %>%
+comparison <- testing %>% 
   select(Events, AvgTwoWeeks) %>%
-  mutate(correct = ifelse(AvgTwoWeeks == Events, "Correct", "Incorret"))
+  mutate(EventsPredicted = round(AvgTwoWeeks)) %>%
+  mutate(falsePositive = ifelse(EventsPredicted > 0 & Events <= 0, "Yes", "No"),
+         falseNegative = ifelse(EventsPredicted <=0 & Events > 0, "Yes", "No"),
+         correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
   
 table(comparison$correct)
+table(results$falsePositive)
+table(results$falseNegative)
 
 
 
