@@ -22,6 +22,8 @@ library(randomForest)
 
 d <- read.csv("./data/bos.csv")
 
+set.seed(123)
+
 # Prepare to create x, y
 d$Loc <- gsub("\\(", "", d$Location)
 d$Loc <- gsub("\\)", "", d$Loc)
@@ -33,6 +35,12 @@ d <- d %>%
   separate(Loc, c("y", "x"), ",") %>%
   mutate(x = as.numeric(x), y = as.numeric(y),
          order = seq(1, nrow(d)))
+
+
+for(i in 2:nrow(d)){
+  d$timeElapsed[i] <- as.numeric(difftime(d$dateTime[i], d$dateTime[(i-1)]),units="hours")
+}
+
 
 # K means
 # This is how we group crimes on a map.
@@ -54,7 +62,7 @@ remove(c)
 
 #### Narrow it down to one cluster and start looking for patterns there #####
 copy <- d
-d <- filter(d, cluster == "6")
+d <- filter(d, cluster == "4")
 
 # Date, which I will use to group the observations
 # And then combine them with all days in the sequence
@@ -77,6 +85,8 @@ d[is.na(d)] <- 0
 remove(allDays, days)
 
 d$id <- seq(1, nrow(d))
+
+
 
 # Now get lag, which will probably be more predictive than time between last event(s)
 c <- as.data.frame(d$Events)
@@ -118,7 +128,7 @@ testing <- d[701:nrow(d),]
 model <- randomForest(as.factor(Events) ~ lag_1 + lag_2 + lag_3 + lag_4 + lag_5 + 
                         lag_6 + lag_7 + lag_8 + lag_9 + lag_10 +
                         AvgTwoWeeks + id + monthDay + weekDay +  month,
-                    data=training, importance=TRUE, ntree=500, na.action = na.omit)
+                    data=training, importance=TRUE, ntree=2000, na.action = na.omit)
 
 
 varImpPlot(model)
@@ -142,6 +152,7 @@ prop.table(table(pos$falsePositive))
 neg <- filter(results, EventsPredicted == 0)
 prop.table(table(neg$falseNegative))
 
+
 comparison <- testing %>% 
   select(Events, AvgTwoWeeks) %>%
   mutate(EventsPredicted = round(AvgTwoWeeks)) %>%
@@ -150,8 +161,11 @@ comparison <- testing %>%
          correct = ifelse(falsePositive == "Yes" | falseNegative == "Yes", "No", "Yes"))
   
 prop.table(table(comparison$correct))
-prop.table(table(comparison$falsePositive))
-prop.table(table(comparison$falseNegative))
+prop.table(table(comparison$Events))
+pos <- filter(comparison, EventsPredicted > 0)
+prop.table(table(pos$falsePositive))
+neg <- filter(comparison, EventsPredicted == 0)
+prop.table(table(neg$falseNegative))
 
 
 
